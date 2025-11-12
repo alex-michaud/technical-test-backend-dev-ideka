@@ -12,8 +12,8 @@
     "format": "biome format --write ./src ./tests",
     "check": "biome check --write ./src ./tests",
     "ci": "biome ci ./src ./tests",
-    "test": "TS_NODE_PROJECT=tsconfig.test.json mocha",
-    "test:watch": "mocha --require ts-node/register 'tests/**/*.test.ts' --watch"
+    "test": "TS_NODE_PROJECT=tsconfig.test.json env-cmd mocha",
+    "test:watch": "env-cmd mocha --require ts-node/register 'tests/**/*.test.ts' --watch"
   },
   "keywords": [],
   "author": "",
@@ -31,6 +31,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.10.1",
     "chai": "^6.2.1",
+    "env-cmd": "^11.0.0",
     "mocha": "^11.7.5",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",

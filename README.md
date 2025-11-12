@@ -27,7 +27,7 @@ Technical test for a position as senior backend developer - A thin Experience AP
 ## Prerequisites
 
 - Node.js (v20 or higher)
-- npm or yarn
+- npm 
 
 ## Installation
 
