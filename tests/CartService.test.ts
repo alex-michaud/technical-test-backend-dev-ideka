@@ -1,18 +1,19 @@
 import { expect } from "chai";
 import { describe } from "mocha";
 import { CartService } from "../src/services/CartService";
-import { AddCartItemRequest } from "../src/models/CartItem";
+import type { AddCartItemRequest } from "../src/models/CartItem";
 
 describe("CartService", () => {
 	let cartService: CartService;
+	let userId: string;
 
 	beforeEach(() => {
 		cartService = new CartService();
+		userId = `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	});
 
 	describe("getCart", () => {
 		it("should create a new cart for a user", async () => {
-			const userId = "user123";
 			const cart = await cartService.getCart(userId);
 
 			expect(cart).to.exist;
@@ -21,7 +22,6 @@ describe("CartService", () => {
 		});
 
 		it("should return the same cart for the same user", async () => {
-			const userId = "user123";
 			const cart1 = await cartService.getCart(userId);
 			const cart2 = await cartService.getCart(userId);
 
@@ -31,7 +31,6 @@ describe("CartService", () => {
 
 	describe("addItem", () => {
 		it("should add an item to the cart", async () => {
-			const userId = "user123";
 			const itemRequest: AddCartItemRequest = {
 				productId: "prod-001",
 				productName: "Premium Data Plan",
@@ -51,7 +50,6 @@ describe("CartService", () => {
 		});
 
 		it("should add multiple items to the cart", async () => {
-			const userId = "user123";
 
 			await cartService.addItem(userId, {
 				productId: "prod-001",
@@ -74,7 +72,6 @@ describe("CartService", () => {
 
 	describe("updateItem", () => {
 		it("should update an item quantity", async () => {
-			const userId = "user123";
 			const itemRequest: AddCartItemRequest = {
 				productId: "prod-001",
 				productName: "Premium Plan",
@@ -93,7 +90,6 @@ describe("CartService", () => {
 		});
 
 		it("should throw error when updating non-existent item", async () => {
-			const userId = "user123";
 			try {
 				await cartService.updateItem(userId, "non-existent-id", { quantity: 2 });
 				throw new Error("Expected updateItem to throw");
@@ -105,7 +101,6 @@ describe("CartService", () => {
 
 	describe("removeItem", () => {
 		it("should remove an item from the cart", async () => {
-			const userId = "user123";
 			const itemRequest: AddCartItemRequest = {
 				productId: "prod-001",
 				productName: "Premium Plan",
@@ -122,7 +117,6 @@ describe("CartService", () => {
 		});
 
 		it("should only remove the specified item", async () => {
-			const userId = "user123";
 
 			await cartService.addItem(userId, {
 				productId: "prod-001",
@@ -148,7 +142,6 @@ describe("CartService", () => {
 
 	describe("clearCart", () => {
 		it("should remove all items from the cart", async () => {
-			const userId = "user123";
 
 			await cartService.addItem(userId, {
 				productId: "prod-001",
@@ -172,14 +165,12 @@ describe("CartService", () => {
 
 	describe("getCartTotal", () => {
 		it("should calculate the correct total for empty cart", async () => {
-			const userId = "user123";
 			const total = await cartService.getCartTotal(userId);
 
 			expect(total).to.equal(0);
 		});
 
 		it("should calculate the correct total for single item", async () => {
-			const userId = "user123";
 
 			await cartService.addItem(userId, {
 				productId: "prod-001",
@@ -194,7 +185,6 @@ describe("CartService", () => {
 		});
 
 		it("should calculate the correct total for multiple items", async () => {
-			const userId = "user123";
 
 			await cartService.addItem(userId, {
 				productId: "prod-001",
