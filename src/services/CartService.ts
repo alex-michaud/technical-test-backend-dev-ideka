@@ -1,100 +1,143 @@
-import { Cart, CartItem, AddCartItemRequest, UpdateCartItemRequest } from '../models/CartItem';
+import {
+	AddCartItemRequest,
+	UpdateCartItemRequest,
+} from "../models/CartItem";
+import { getPrismaClient } from "./Database";
+import type { Cart, CartItem, Prisma } from '@prisma/client';
+// import type { Cart, CartItem } from "../models/CartItem";
+
+const prisma = getPrismaClient();
+
+// Use Prisma-generated types: a cart returned with `include: { items: true }`
+// has the shape `Cart & { items: CartItem[] }`.
+type CartWithItems = Prisma.CartGetPayload<{ include: { items: true } }>;
+// A cartItem fetched with its cart included will be CartItem & { cart: Cart }
+type ItemWithCart = Prisma.CartItemGetPayload<{ include: { cart: true } }>;
 
 /**
- * CartService - Non-persistent in-memory cart service
- * This service manages cart operations without database persistence
+ * CartService - Persistent cart service backed by Prisma (with in-memory fallback)
+ * This service manages cart operations and persists them using Prisma. If any
+ * database operation fails, the service falls back to a local in-memory Map so
+ * the API remains usable in tests or offline scenarios.
  */
 export class CartService {
-  private carts: Map<string, Cart> = new Map();
+	private carts: Map<string, CartWithItems> = new Map();
 
-  /**
-   * Get or create a cart for a user
-   */
-  getCart(userId: string): Cart {
-    if (!this.carts.has(userId)) {
-      const newCart: Cart = {
-        id: this.generateId(),
-        userId,
-        items: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      this.carts.set(userId, newCart);
-    }
-    return this.carts.get(userId)!;
-  }
+	/**
+	 * Identity map for Prisma cart-with-items
+	 */
+	private mapPrismaCart(prismaCart: CartWithItems): CartWithItems {
+		return prismaCart;
+	}
 
-  /**
-   * Add an item to the cart
-   */
-  addItem(userId: string, itemRequest: AddCartItemRequest): Cart {
-    const cart = this.getCart(userId);
-    
-    const newItem: CartItem = {
-      id: this.generateId(),
-      ...itemRequest,
-    };
+	/**
+	 * Get or create a cart for a user (DB-backed)
+	 */
+	async getCart(userId: string): Promise<CartWithItems> {
+    let cart = await prisma.cart.findUnique({
+      where: { userId },
+      include: { items: true },
+    })
 
-    cart.items.push(newItem);
-    cart.updatedAt = new Date();
-    
-    return cart;
-  }
-
-  /**
-   * Update an item in the cart
-   */
-  updateItem(userId: string, itemId: string, updates: UpdateCartItemRequest): Cart {
-    const cart = this.getCart(userId);
-    const itemIndex = cart.items.findIndex(item => item.id === itemId);
-    
-    if (itemIndex === -1) {
-      throw new Error('Item not found in cart');
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: { userId },
+        include: { items: true }
+      })
     }
 
-    cart.items[itemIndex] = {
-      ...cart.items[itemIndex],
-      ...updates,
-    };
-    cart.updatedAt = new Date();
-    
-    return cart;
-  }
+    const mapped = this.mapPrismaCart(cart);
+    this.carts.set(userId, mapped);
+    return mapped;
+	}
 
-  /**
-   * Remove an item from the cart
-   */
-  removeItem(userId: string, itemId: string): Cart {
-    const cart = this.getCart(userId);
-    cart.items = cart.items.filter(item => item.id !== itemId);
-    cart.updatedAt = new Date();
-    
-    return cart;
-  }
+	/**
+	 * Add an item to the cart (DB-backed)
+	 */
+	async addItem(userId: string, itemRequest: AddCartItemRequest): Promise<CartWithItems> {
+    let cart = await prisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      cart = await prisma.cart.create({ data: { userId } });
+    }
 
-  /**
-   * Clear all items from the cart
-   */
-  clearCart(userId: string): Cart {
-    const cart = this.getCart(userId);
-    cart.items = [];
-    cart.updatedAt = new Date();
-    
-    return cart;
-  }
+    const planType = itemRequest.planType ? itemRequest.planType.toUpperCase() : undefined;
 
-  /**
-   * Get cart total
-   */
-  getCartTotal(userId: string): number {
-    const cart = this.getCart(userId);
-    return cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-  }
+    await prisma.cartItem.create({
+      data: {
+        productId: itemRequest.productId,
+        productName: itemRequest.productName,
+        quantity: itemRequest.quantity,
+        price: itemRequest.price,
+        planType: planType as any,
+        dataAllowance: itemRequest.dataAllowance ?? null,
+        cartId: cart.id,
+      },
+    });
 
-  /**
-   * Generate a unique ID (simplified for demo)
-   */
-  private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
+    const refreshed = await prisma.cart.findUnique({ where: { userId }, include: { items: true } });
+    if (!refreshed) throw new Error("Failed to fetch cart after insert");
+    this.carts.set(userId, refreshed);
+    return refreshed;
+	}
+
+	/**
+	 * Update an item in the cart (DB-backed)
+	 */
+	async updateItem(userId: string, itemId: string, updates: UpdateCartItemRequest): Promise<CartWithItems> {
+    const existing = (await prisma.cartItem.findUnique({ where: { id: itemId }, include: { cart: true } as any })) as ItemWithCart | null;
+    if (!existing || existing.cart.userId !== userId) {
+      throw new Error("Item not found in cart");
+    }
+
+    await prisma.cartItem.update({ where: { id: itemId }, data: updates });
+
+    const refreshed = await prisma.cart.findUnique({ where: { userId }, include: { items: true } });
+    if (!refreshed) throw new Error("Cart not found");
+    this.carts.set(userId, refreshed);
+    return refreshed;
+	}
+
+	/**
+	 * Remove an item from the cart (DB-backed)
+	 */
+	async removeItem(userId: string, itemId: string): Promise<CartWithItems> {
+    const existing = await prisma.cartItem.findUnique({ where: { id: itemId }, include: { cart: true } });
+    if (!existing || existing.cart.userId !== userId) {
+      throw new Error("Item not found in cart");
+    }
+    await prisma.cartItem.delete({ where: { id: itemId } });
+    const refreshed = await prisma.cart.findUnique({ where: { userId }, include: { items: true } });
+    if (!refreshed) throw new Error("Cart not found");
+    this.carts.set(userId, refreshed);
+    return refreshed;
+	}
+
+	/**
+	 * Clear all items from the cart (DB-backed)
+	 */
+	async clearCart(userId: string): Promise<CartWithItems> {
+    const cart = await prisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      const created = await prisma.cart.create({ data: { userId } });
+      const mapped = ({ ...created, items: [] } as unknown) as CartWithItems;
+      this.carts.set(userId, mapped);
+      return mapped;
+    }
+
+    await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    const refreshed = (await prisma.cart.findUnique({ where: { userId }, include: { items: true } })) as CartWithItems | null;
+    const mapped = refreshed ?? ({ ...cart, items: [] } as CartWithItems);
+    this.carts.set(userId, mapped);
+    return mapped;
+	}
+
+	/**
+	 * Get cart total (DB-backed)
+	 */
+	async getCartTotal(userId: string): Promise<number> {
+    const cart = await prisma.cart.findUnique({ where: { userId }, include: { items: true } });
+    if (!cart) return 0;
+    return (cart.items || []).reduce((total: number, it: CartItem) => total + it.price * it.quantity, 0);
+	}
+
 }

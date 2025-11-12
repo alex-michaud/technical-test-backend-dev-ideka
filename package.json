@@ -7,6 +7,11 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "nodemon --exec ts-node src/server.ts",
+    "db:generate": "npx prisma generate --schema=./src/prisma/schema.prisma",
+    "lint": "biome lint --write ./src ./tests",
+    "format": "biome format --write ./src ./tests",
+    "check": "biome check --write ./src ./tests",
+    "ci": "biome ci ./src ./tests",
     "test": "TS_NODE_PROJECT=tsconfig.test.json mocha",
     "test:watch": "mocha --require ts-node/register 'tests/**/*.test.ts' --watch"
   },
@@ -14,9 +19,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "@prisma/client": "^6.19.0",
+    "express": "^5.1.0",
+    "prisma": "^6.19.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.5",
     "@types/chai": "^5.2.3",
     "@types/express": "^5.0.5",
     "@types/mocha": "^10.0.10",

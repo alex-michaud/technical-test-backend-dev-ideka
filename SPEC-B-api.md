@@ -1,8 +1,9 @@
-# API Specification: Telecom Cart Experience API
+# API Specification: Telecom Cart API
 
 ## Overview
 
-This document outlines the design of a thin Experience API that powers a telecom cart on top of a non-persistent Salesforce cart context. The API provides cart management capabilities specifically tailored for telecom products such as mobile plans, data packages, and related services.
+This document outlines the design of an API that powers a telecom cart.
+It should follow strict RESTful principles and be implemented using TypeScript and Express.js.
 
 ## Part A: API Design Specification
 
@@ -13,7 +14,6 @@ The Experience API follows a layered architecture:
 1. **Routes Layer**: Express.js routes handling HTTP requests
 2. **Service Layer**: Business logic for cart operations
 3. **Model Layer**: TypeScript interfaces defining data structures
-4. **Storage Layer**: In-memory non-persistent storage (simulating Salesforce cart context)
 
 ### Core Entities
 
@@ -149,92 +149,3 @@ Comprehensive unit tests covering:
 5. Clearing entire cart
 6. Total calculation accuracy
 7. Error cases (item not found, etc.)
-
-### API Usage Examples
-
-#### Example 1: Create Cart and Add Premium Plan
-```bash
-# Add a premium postpaid plan
-curl -X POST http://localhost:3000/api/cart/user123/items \
-  -H "Content-Type: application/json" \
-  -d '{
-    "productId": "premium-5g-plan",
-    "productName": "Premium 5G Unlimited",
-    "quantity": 1,
-    "price": 79.99,
-    "planType": "postpaid",
-    "dataAllowance": "unlimited"
-  }'
-```
-
-#### Example 2: Add Multiple Prepaid Plans
-```bash
-# Add prepaid data package
-curl -X POST http://localhost:3000/api/cart/user456/items \
-  -H "Content-Type: application/json" \
-  -d '{
-    "productId": "prepaid-50gb",
-    "productName": "50GB Prepaid Data",
-    "quantity": 2,
-    "price": 29.99,
-    "planType": "prepaid",
-    "dataAllowance": "50GB"
-  }'
-```
-
-#### Example 3: Update Quantity
-```bash
-# Update item quantity
-curl -X PUT http://localhost:3000/api/cart/user123/items/{itemId} \
-  -H "Content-Type: application/json" \
-  -d '{"quantity": 3}'
-```
-
-#### Example 4: Get Cart Total
-```bash
-# Calculate total
-curl http://localhost:3000/api/cart/user123/total
-```
-
-### Non-Functional Requirements
-
-1. **Performance**: In-memory operations provide sub-millisecond response times
-2. **Scalability**: Designed to be stateless, can scale horizontally with shared storage
-3. **Maintainability**: TypeScript ensures type safety and better IDE support
-4. **Testability**: Service layer separated from routes for easy unit testing
-5. **Extensibility**: Interface-based design allows easy feature additions
-
-### Future Enhancements
-
-To evolve this into a production-ready system:
-
-1. **Persistence Layer**: Integrate with actual Salesforce or database
-2. **Authentication**: Add JWT or OAuth2 authentication
-3. **Validation**: Use libraries like Joi or class-validator
-4. **Caching**: Add Redis for distributed cart storage
-5. **Events**: Emit cart events for analytics and integrations
-6. **API Versioning**: Support multiple API versions
-7. **Rate Limiting**: Protect against abuse
-8. **Monitoring**: Add logging, metrics, and tracing
-9. **Documentation**: Generate OpenAPI/Swagger specs
-10. **Cart Expiration**: Implement automatic cart cleanup
-
-## Part C: Implementation Complete
-
-The implementation is complete and includes:
-
-✅ Full Express.js TypeScript application
-✅ Non-persistent cart service with all operations
-✅ RESTful API endpoints
-✅ Comprehensive unit tests with Chai
-✅ Development and production build scripts
-✅ API documentation and examples
-✅ Clean folder structure (src/ and tests/)
-✅ Type-safe models and interfaces
-
-The application is ready to run and can be started with:
-```bash
-npm install
-npm run dev  # for development
-npm test     # to run tests
-```
